@@ -1,0 +1,66 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: telegram-bot-java-sample
+
+# Telegram Bot配置
+telegram:
+  bot:
+    # Bot Token（从Telegram BotFather获取）
+    bot-token: YOUR_BOT_TOKEN_HERE
+
+    # Webhook安全密钥（可选，建议设置）
+    secret-token: YOUR_SECRET_TOKEN_HERE_32_CHAR_MIN
+
+    # 允许的IP段（CIDR格式），留空表示允许所有IP
+    allowed-ips:
+      - "149.154.160.0/20"  # Telegram服务器IP段
+      - "91.108.4.0/22"     # Telegram服务器IP段
+
+    # 频率限制配置
+    rate-limit:
+      # 每个IP每分钟最大请求数
+      ip-requests-per-minute: 100
+      # 每个用户每分钟最大请求数
+      user-requests-per-minute: 20
+      # 特定命令的频率限制
+      commands:
+        balance:
+          max-requests: 10    # 每分钟最多10次余额查询
+          time-window: 1      # 时间窗口1分钟
+        bind:
+          max-requests: 5     # 每小时最多5次绑定操作
+          time-window: 60     # 时间窗口60分钟
+
+    # 绑定码配置
+    binding:
+      # 绑定码过期时间（分钟）
+      code-expiry-minutes: 10
+      # 绑定码长度范围
+      code-length-min: 24
+      code-length-max: 30
+
+# 日志配置
+logging:
+  level:
+    com.ademon.telegrambot: DEBUG
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/telegram-bot.log
+    max-size: 10MB
+    max-history: 30
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized

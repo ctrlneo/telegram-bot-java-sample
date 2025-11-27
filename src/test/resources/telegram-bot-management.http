@@ -1,0 +1,347 @@
+###
+# Telegram Bot 管理API测试用例
+# 用于设置Bot菜单、webhook等管理功能
+# 适用于 IntelliJ IDEA HTTP Client 或 VS Code REST Client
+###
+
+### 环境变量定义
+# 创建 http-client.env.json 或 .http-client.env.json 文件来存储这些变量
+# {
+#   "dev": {
+#     "telegramBotToken": "your_bot_token_here",
+#     "webhookUrl": "https://your-domain.com/bot/rest/tg/webhook",
+#     "secretToken": "your_32_character_secret_token_here_minimum"
+#   }
+# }
+
+### ============ Bot 菜单管理 ============
+
+### 1. 设置Demo Bot基本菜单 (基于TelegramOperationType枚举)
+POST https://api.telegram.org/bot{{telegramBotToken}}/setMyCommands
+Content-Type: application/json
+
+{
+  "commands": [
+    {
+      "command": "start",
+      "description": "开始使用机器人"
+    },
+    {
+      "command": "help",
+      "description": "显示帮助信息"
+    },
+    {
+      "command": "balance",
+      "description": "查询余额"
+    }
+  ]
+}
+
+> {%
+client.test("设置Demo菜单成功", function() {
+    client.assert(response.status === 200, "状态码应为200");
+    client.assert(response.body.ok === true, "设置应成功");
+    client.log("✅ Demo Bot菜单设置成功 (start, help, balance)");
+});
+%}
+
+### 2. 获取当前Bot菜单
+GET https://api.telegram.org/bot{{telegramBotToken}}/getMyCommands
+
+> {%
+client.test("获取菜单成功", function() {
+    client.assert(response.status === 200, "状态码应为200");
+    client.assert(response.body.ok === true, "获取应成功");
+    if (response.body.result.length > 0) {
+        client.log("📋 当前菜单数量: " + response.body.result.length);
+        response.body.result.forEach(function(cmd) {
+            client.log("   /" + cmd.command + " - " + cmd.description);
+        });
+    }
+});
+%}
+
+### 3. 删除Bot菜单
+POST https://api.telegram.org/bot{{telegramBotToken}}/deleteMyCommands
+Content-Type: application/json
+
+{}
+
+> {%
+client.test("删除菜单成功", function() {
+    client.assert(response.status === 200, "状态码应为200");
+    client.assert(response.body.ok === true, "删除应成功");
+    client.log("🗑️ 菜单已删除");
+});
+%}
+
+### ============ Webhook 管理 ============
+
+### 4. 设置Demo Webhook
+POST https://api.telegram.org/bot{{telegramBotToken}}/setWebhook
+Content-Type: application/json
+
+{
+  "url": "{{webhookUrl}}",
+  "secret_token": "{{secretToken}}",
+  "max_connections": 40,
+  "allowed_updates": ["message", "callback_query"],
+  "drop_pending_updates": true
+}
+
+> {%
+client.test("设置Webhook成功", function() {
+    client.assert(response.status === 200, "状态码应为200");
+    client.assert(response.body.ok === true, "设置应成功");
+    client.assert(response.body.result.url === "{{webhookUrl}}", "Webhook URL应匹配");
+    client.log("🔗 Webhook设置成功: " + response.body.result.url);
+    client.log("🔒 Secret Token: " + (response.body.result.has_custom_certificate ? "已设置" : "未设置"));
+});
+%}
+
+### 5. 获取Webhook信息
+GET https://api.telegram.org/bot{{telegramBotToken}}/getWebhookInfo
+
+> {%
+client.test("获取Webhook信息成功", function() {
+    client.assert(response.status === 200, "状态码应为200");
+    client.assert(response.body.ok === true, "获取应成功");
+
+    var webhook = response.body.result;
+    client.log("📊 Webhook信息:");
+    client.log("   URL: " + webhook.url);
+    client.log("   自定义证书: " + (webhook.has_custom_certificate ? "是" : "否"));
+    client.log("   待处理更新数: " + webhook.pending_update_count);
+    client.log("   最后错误: " + (webhook.last_error_message || "无"));
+
+    client.assert(webhook.url !== "", "Webhook URL不应为空");
+});
+%}
+
+### 6. 删除Webhook
+POST https://api.telegram.org/bot{{telegramBotToken}}/deleteWebhook
+Content-Type: application/json
+
+{
+  "drop_pending_updates": true
+}
+
+> {%
+client.test("删除Webhook成功", function() {
+    client.assert(response.status === 200, "状态码应为200");
+    client.assert(response.body.ok === true, "删除应成功");
+    client.log("❌ Webhook已删除");
+});
+%}
+
+### ============ Bot 信息管理 ============
+
+### 7. 获取Bot信息
+GET https://api.telegram.org/bot{{telegramBotToken}}/getMe
+
+> {%
+client.test("获取Bot信息成功", function() {
+    client.assert(response.status === 200, "状态码应为200");
+    client.assert(response.body.ok === true, "获取应成功");
+    client.assert(response.body.result.is_bot === true, "应为Bot账号");
+
+    var bot = response.body.result;
+    client.global.set("botId", bot.id);
+    client.global.set("botUsername", bot.username);
+    client.log("🤖 Bot信息:");
+    client.log("   ID: " + bot.id);
+    client.log("   用户名: @" + bot.username);
+    client.log("   名称: " + bot.first_name + (bot.last_name ? " " + bot.last_name : ""));
+    client.log("   可加入群组: " + (bot.can_join_groups ? "是" : "否"));
+    client.log("   可阅读群组消息: " + (bot.can_read_all_group_messages ? "是" : "否"));
+    client.log("   支持内联查询: " + (bot.supports_inline_queries ? "是" : "否"));
+});
+%}
+
+### 8. 设置Bot描述
+POST https://api.telegram.org/bot{{telegramBotToken}}/setMyDescription
+Content-Type: application/json
+
+{
+  "description": "Telegram Bot Demo - 基于Spring Boot的示例机器人项目"
+}
+
+> {%
+client.test("设置Bot描述成功", function() {
+    client.assert(response.status === 200, "状态码应为200");
+    client.assert(response.body.ok === true, "设置应成功");
+    client.log("📝 Bot描述已更新");
+});
+%}
+
+### 9. 获取Bot描述
+GET https://api.telegram.org/bot{{telegramBotToken}}/getMyDescription
+
+### 10. 设置Bot简短描述
+POST https://api.telegram.org/bot{{telegramBotToken}}/setMyShortDescription
+Content-Type: application/json
+
+{
+  "short_description": "Telegram机器人Demo"
+}
+
+### 11. 获取Bot简短描述
+GET https://api.telegram.org/bot{{telegramBotToken}}/getMyShortDescription
+
+### ============ 菜单按钮管理 ============
+
+### 12. 设置菜单按钮
+POST https://api.telegram.org/bot{{telegramBotToken}}/setChatMenuButton
+Content-Type: application/json
+
+{
+  "menu_button": {
+    "type": "commands"
+  }
+}
+
+> {%
+client.test("设置菜单按钮成功", function() {
+    client.assert(response.status === 200, "状态码应为200");
+    client.assert(response.body.ok === true, "设置应成功");
+    client.log("📋 菜单按钮设置为: commands");
+});
+%}
+
+### 13. 获取菜单按钮
+GET https://api.telegram.org/bot{{telegramBotToken}}/getChatMenuButton
+
+> {%
+client.test("获取菜单按钮成功", function() {
+    client.assert(response.status === 200, "状态码应为200");
+    client.assert(response.body.ok === true, "获取应成功");
+    var button = response.body.result;
+    client.log("📋 当前菜单按钮类型: " + button.type);
+});
+%}
+
+### ============ 测试连接性 ============
+
+### 14. 测试Bot连接
+GET https://api.telegram.org/bot{{telegramBotToken}}/getUpdates
+
+> {%
+client.test("Bot连接测试", function() {
+    client.assert(response.status === 200, "状态码应为200");
+    client.assert(response.body.ok === true, "连接应正常");
+
+    if (response.body.result.length > 0) {
+        client.log("📨 待处理消息数: " + response.body.result.length);
+        response.body.result.forEach(function(update) {
+            if (update.message) {
+                client.log("   消息: " + update.message.text + " (来自: " + update.message.from.username + ")");
+            }
+        });
+    } else {
+        client.log("📭 暂无待处理消息");
+    }
+});
+%}
+
+### 15. 发送测试消息 (需要先获取chat_id)
+POST https://api.telegram.org/bot{{telegramBotToken}}/sendMessage
+Content-Type: application/json
+
+{
+  "chat_id": "YOUR_CHAT_ID_HERE",
+  "text": "🤖 Demo Bot管理API测试消息\n\nBot配置已更新完成！",
+  "parse_mode": "HTML"
+}
+
+### ============ 错误处理测试 ============
+
+### 16. 测试无效token
+GET https://api.telegram.org/botINVALID_TOKEN/getMe
+
+> {%
+client.test("无效token测试", function() {
+    client.assert(response.status === 401, "应返回401未授权");
+    client.assert(response.body.error_code === 401, "错误代码应为401");
+    client.log("❌ 无效token测试通过");
+});
+%}
+
+### 17. 测试无效webhook URL
+POST https://api.telegram.org/bot{{telegramBotToken}}/setWebhook
+Content-Type: application/json
+
+{
+  "url": "http://invalid-url"
+}
+
+> {%
+client.test("无效webhook URL测试", function() {
+    client.assert(response.status === 400, "应返回400错误请求");
+    client.log("❌ 无效URL测试通过");
+});
+%}
+
+### ============ 一键完整配置 ============
+
+### 18. 完整配置Demo Bot
+POST https://api.telegram.org/bot{{telegramBotToken}}/setMyCommands
+Content-Type: application/json
+
+{
+  "commands": [
+    {
+      "command": "start",
+      "description": "开始使用机器人"
+    },
+    {
+      "command": "help",
+      "description": "显示帮助信息"
+    },
+    {
+      "command": "balance",
+      "description": "查询余额"
+    }
+  ]
+}
+
+> {%
+client.test("完整菜单配置", function() {
+    client.assert(response.status === 200, "状态码应为200");
+    client.log("✅ Demo Bot菜单配置完成 (start, help, balance)");
+});
+%}
+
+### 19. 设置完整Webhook配置
+POST https://api.telegram.org/bot{{telegramBotToken}}/setWebhook
+Content-Type: application/json
+
+{
+  "url": "{{webhookUrl}}",
+  "secret_token": "{{secretToken}}",
+  "max_connections": 40,
+  "allowed_updates": ["message", "callback_query"],
+  "drop_pending_updates": true
+}
+
+> {%
+client.test("完整Webhook配置", function() {
+    client.assert(response.status === 200, "状态码应为200");
+    client.log("✅ Demo Bot Webhook配置完成");
+});
+%}
+
+### ============ 清理操作 ============
+
+### 20. 完整重置 - 删除webhook和菜单
+POST https://api.telegram.org/bot{{telegramBotToken}}/deleteWebhook
+Content-Type: application/json
+
+{
+  "drop_pending_updates": true
+}
+
+###
+POST https://api.telegram.org/bot{{telegramBotToken}}/deleteMyCommands
+Content-Type: application/json
+
+{}

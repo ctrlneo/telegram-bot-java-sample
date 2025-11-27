@@ -1,0 +1,21 @@
+# 开发环境配置
+spring:
+  profiles:
+    active: dev
+
+server:
+  port: 8080
+
+telegram:
+  bot:
+    # 开发环境配置（使用测试Bot）
+    bot-token: ${TELEGRAM_BOT_TOKEN:YOUR_DEV_BOT_TOKEN}
+    secret-token: ${TELEGRAM_SECRET_TOKEN:DEV_SECRET_TOKEN_32_CHARS_MIN}
+
+    # 开发环境允许所有IP（方便测试）
+    allowed-ips: []
+
+logging:
+  level:
+    com.ademon.telegrambot: DEBUG
+    root: INFO
